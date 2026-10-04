@@ -1,0 +1,67 @@
+{
+  "info": {
+    "_postman_id": "a1e7d7e0-d1f2-4f75-a8cb-85e2d3bd280e",
+    "name": "WayAble Routing API",
+    "description": "Accessibility-aware walking route requests. Start the API first, then use the request below.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "Find wheelchair routes",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"from_location\": \"Dogpatch Labs, Dublin\",\n  \"to_location\": \"Trinity College Dublin\",\n  \"user_type\": \"wheelchair\",\n  \"departure_time\": \"2026-10-05T09:00:00+01:00\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/routes"
+      }
+    },
+    {
+      "name": "Find low-vision routes",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"from_location\": \"Dogpatch Labs, Dublin\",\n  \"to_location\": \"Trinity College Dublin\",\n  \"user_type\": \"low_vision\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/routes"
+      }
+    }
+  ]
+}
