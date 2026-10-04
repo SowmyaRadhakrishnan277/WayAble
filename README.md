@@ -1,8 +1,6 @@
-# WayAble
+WayAble Ireland
 
-AccessPath Ireland
-
-AccessPath Ireland is a walking route planner for Dublin. It combines live map data and public accessibility information to help people compare routes based on the details that matter to them.
+WayAble Ireland is a walking route planner for Dublin. It combines live map data and public accessibility information to help people compare routes based on the details that matter to them.
 
 Features
 Two route profiles: Wheelchair and Low vision. Each profile changes route ranking and map emphasis.
@@ -10,10 +8,9 @@ AI-assisted route assessment: AI is used to help assess and rank routes for each
 Route comparisons: Compare travel time, distance, data confidence, mapped features, and unknown information.
 Live map: View route options and their locations on the map.
 Route conditions: See relevant lift notices, footpath closures, roadworks, and other disruptions. Affected routes are reranked where alternatives are available.
-
 Data sources
 
-AccessPath uses public data to provide information about walking routes and nearby transport. These sources include:
+WayAble uses public data to provide information about walking routes and nearby transport. These sources include:
 
 OpenStreetMap for pedestrian paths and mapped access details.
 NaPTAN for Irish public transport stop locations.
@@ -32,6 +29,6 @@ Data confidence describes how much relevant information is recorded for a route.
 
 Use of AI
 
-AI was used to assess the routes in AccessPath. It helps interpret the available route data and informs how routes are compared and ranked for each profile.
+AI was used to assess the routes in WayAble. It helps interpret the available route data and informs how routes are compared and ranked for each profile.
 
-AI-generated assessments can be incomplete or wrong, especially where map data is missing, outdated, or inconsistent. They should be treated as guidance, not a guarantee of accessibility. Where information is unavailable, AccessPath shows it as unknown rather than filling the gap with an assumption. Please use the route update feature to report errors or confirm features so assessments can improve.
+AI-generated assessments can be incomplete or wrong, especially where map data is missing, outdated, or inconsistent. They should be treated as guidance, not a guarantee of accessibility. Where information is unavailable, WayAble shows it as unknown rather than filling the gap with an assumption. Please use the route update feature to report errors or confirm features so assessments can improve.
