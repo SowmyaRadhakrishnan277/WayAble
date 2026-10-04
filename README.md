@@ -1,34 +1,58 @@
-WayAble Ireland
+# WayAble
 
-WayAble Ireland is a walking route planner for Dublin. It combines live map data and public accessibility information to help people compare routes based on the details that matter to them.
+WayAble is a Dublin-first accessibility-aware walking journey demo. The frontend uses the FastAPI routing service for live routes when configured, with a local fixture mode for offline demos.
 
-Features
-Two route profiles: Wheelchair and Low vision. Each profile changes route ranking and map emphasis.
-AI-assisted route assessment: AI is used to help assess and rank routes for each profile (see Use of AI).
-Route comparisons: Compare travel time, distance, data confidence, mapped features, and unknown information.
-Live map: View route options and their locations on the map.
-Route conditions: See relevant lift notices, footpath closures, roadworks, and other disruptions. Affected routes are reranked where alternatives are available.
-Data sources
+## Run the complete app on macOS
 
-WayAble uses public data to provide information about walking routes and nearby transport. These sources include:
+Use two terminal windows from this project folder.
 
-OpenStreetMap for pedestrian paths and mapped access details.
-NaPTAN for Irish public transport stop locations.
-Live map and disruption services configured for the application.
+### 1. Start the backend
 
-Data coverage varies by location. Missing route information is shown as unknown; it is not treated as proof that a route is accessible.
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env
+PYTHONPATH=backend python -m uvicorn app.main:app --app-dir backend --env-file backend/.env --reload --port 8000
+```
 
-Route ranking and data confidence
+Check `http://localhost:8000/health` or open `http://localhost:8000/docs` for the API.
 
-Routes are assessed and ranked separately for each profile using the information available for their segments. AI supports this assessment (see Use of AI).
+The backend calls public Nominatim, pedestrian OSRM, and Overpass services. It caches responses and reports missing access tags as unknown. Replace the example contact in `WAYABLE_USER_AGENT` with a real contact because live route search queries public map services. AI review is optional and off by default. Enable it with `WAYABLE_AI_ENABLED=true` and either an `OPENAI_API_KEY` or a gateway `OPENAI_BASE_URL`. Never put the key in the frontend `.env` or commit `backend/.env`. NTA transit planning is optional and needs approved feed URLs and credentials; Irish Rail lift status is not configured in this sample.
 
-Wheelchair profile: Prioritises step-free paths, dropped kerbs, smoother surfaces, and gentler slopes. Known barriers and closures are penalised or excluded when possible.
-Low vision profile: Prioritises simpler crossings, mapped pedestrian signals, lighting, and tactile paving where data is available.
+### 2. Start the frontend
 
-Data confidence describes how much relevant information is recorded for a route. It is not a prediction that a route will work for a particular person. Always check current conditions and choose the route that best fits your needs.
+In another terminal:
 
-Use of AI
+```sh
+cp .env.example .env
+npm install
+npm run dev
+```
 
-AI was used to assess the routes in WayAble. It helps interpret the available route data and informs how routes are compared and ranked for each profile.
+Open the Local URL printed by Vite, normally `http://localhost:5173/`. Restart Vite after changing `.env`.
 
-AI-generated assessments can be incomplete or wrong, especially where map data is missing, outdated, or inconsistent. They should be treated as guidance, not a guarantee of accessibility. Where information is unavailable, WayAble shows it as unknown rather than filling the gap with an assumption. Please use the route update feature to report errors or confirm features so assessments can improve.
+To run without the backend, set `VITE_USE_MOCKS=true` in `.env`. Fixture routes and access facts are labeled as demo data.
+
+## What is connected
+
+- Route planning: the frontend calls `POST /api/v1/journeys`. It returns walking routes and adds direct transit options when NTA GTFS credentials and feed URLs are configured. `POST /api/v1/routes` remains available for walking-only searches.
+- The frontend converts API response fields without upgrading unknown, caution, or mapped states to confirmed. Route tags near a path are evidence, not a safety guarantee.
+- Optional AI review can add a bounded advisory confidence adjustment and explanation; it cannot change a route's blocker status and receives no place names, coordinates, or user identifiers.
+- The live API currently scores the wheelchair or low-vision profile. Chair type, slope, and minimum-width settings are saved in the browser but are not yet sent to or scored by the API.
+- Account sign-in, saved routes, and community reports remain browser-local demo features. The attached backend does not implement authentication, persistent storage, or report endpoints.
+
+## Checks
+
+```sh
+npm run build
+npm run contrast
+```
+
+Backend unit tests (after installing the requirements):
+
+```sh
+PYTHONPATH=backend python -m pytest backend/tests -q
+```
+
+This prototype is not safety-critical navigation. Check current conditions before travelling.

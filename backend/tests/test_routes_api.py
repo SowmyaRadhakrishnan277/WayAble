@@ -28,7 +28,7 @@ class FakeMapProvider:
 
     async def accessibility_features(self, coordinates):
         if coordinates[1][1] == 53.345:
-            return ([{"type": "node", "id": 1, "lat": 53.345, "lon": -6.246, "tags": {"wheelchair": "yes", "kerb": "lowered"}}], True)
+            return ([{"type": "node", "id": 1, "lat": 53.345, "lon": -6.246, "tags": {"highway": "crossing", "wheelchair": "yes", "kerb": "lowered"}}], True)
         return ([{"type": "node", "id": 2, "lat": 53.349, "lon": -6.248, "tags": {"highway": "steps"}}], True)
 
     def data_sources(self, accessibility_data_available):
@@ -56,6 +56,8 @@ def test_returns_two_ranked_routes_with_geojson(client):
     assert payload["routes"][0]["status"] == "recommended"
     assert payload["routes"][0]["confidence_score"] > payload["routes"][1]["confidence_score"]
     assert payload["routes"][0]["geometry"]["type"] == "LineString"
+    assert payload["routes"][0]["ai_review"]["state"] == "not_configured"
+    assert payload["routes"][0]["rule_based_confidence_score"] == payload["routes"][0]["confidence_score"]
     assert payload["routes"][0]["legs"][0]["instructions"][0]["instruction"]
     assert payload["routes"][1]["status"] == "avoid"
     assert payload["provider_status"]["public_transport"] == "not_configured"

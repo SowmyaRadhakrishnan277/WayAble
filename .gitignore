@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.venv/
+.env
+**/.env
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.tsbuildinfo
+WayAble/

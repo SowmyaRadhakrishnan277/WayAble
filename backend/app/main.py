@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .ai_reviewer import AIRouteReviewer
 from .journey import JourneyService
 from .models import ErrorResponse, JourneyRequest, Location, ProviderStatus, RouteRequest, RouteResponse, SourceState
 from .providers import LocationNotFoundError, OpenStreetMapProvider, ProviderError
@@ -24,6 +25,7 @@ def create_app(provider: OpenStreetMapProvider | None = None) -> FastAPI:
     transit_provider = NtaTransitProvider(settings=map_provider.settings) if owns_provider else None
     service = RouteService(map_provider)
     journey_service = JourneyService(map_provider, transit_provider) if transit_provider else None
+    ai_reviewer = AIRouteReviewer()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -47,7 +49,10 @@ def create_app(provider: OpenStreetMapProvider | None = None) -> FastAPI:
         description="Returns accessibility-aware walking route alternatives for wheelchair and low-vision users.",
         lifespan=lifespan,
     )
-    origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+    origins = os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000",
+    ).split(",")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[origin.strip() for origin in origins],
@@ -70,6 +75,7 @@ def create_app(provider: OpenStreetMapProvider | None = None) -> FastAPI:
             origin_data = await map_provider.geocode(request.from_location)
             destination_data = await map_provider.geocode(request.to_location)
             route_options, accessibility_data_available = await service.plan(origin_data, destination_data, request.user_type)
+            route_options, ai_state = await ai_reviewer.review_routes(route_options, request.user_type)
         except LocationNotFoundError as error:
             return JSONResponse(status_code=404, content=ErrorResponse(detail=str(error), code="location_not_found").model_dump())
         except ProviderError as error:
@@ -87,6 +93,7 @@ def create_app(provider: OpenStreetMapProvider | None = None) -> FastAPI:
             warnings.append("Departure time will affect public-transport routes when the NTA multimodal adapter is configured; it does not change walking routes.")
 
         data_sources = map_provider.data_sources(accessibility_data_available) if hasattr(map_provider, "data_sources") else []
+        data_sources.append(ai_reviewer.data_source(ai_state))
 
         return RouteResponse(
             user_type=request.user_type,
@@ -132,7 +139,8 @@ def create_app(provider: OpenStreetMapProvider | None = None) -> FastAPI:
 
         all_routes = walking_routes + transit_routes
         all_routes.sort(key=lambda option: ({"recommended": 0, "caution": 1, "avoid": 2}[option.status], -option.confidence_score, option.duration_seconds))
-        all_routes = all_routes[:2]
+        all_routes, ai_state = await ai_reviewer.review_routes(all_routes[:2], request.user_type)
+        all_routes.sort(key=lambda option: ({"recommended": 0, "caution": 1, "avoid": 2}[option.status], -option.confidence_score, option.duration_seconds))
         accessibility_available = walking_accessibility_available and transit_accessibility_available
         sources = map_provider.data_sources(accessibility_available)
         sources = [
@@ -140,6 +148,7 @@ def create_app(provider: OpenStreetMapProvider | None = None) -> FastAPI:
             source.model_copy(update={"state": realtime_state}) if source.id == "nta-gtfs-realtime" else source
             for source in sources
         ]
+        sources.append(ai_reviewer.data_source(ai_state))
         warnings = [
             "Missing accessibility evidence is shown as unknown, not accessible.",
             "Check live conditions before travel; this API is not a safety-critical navigation service.",

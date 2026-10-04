@@ -89,17 +89,27 @@ class DataSource(BaseModel):
     updated_at: datetime | None = None
 
 
+class AIReview(BaseModel):
+    state: SourceState
+    model: str | None = None
+    confidence_adjustment: int = Field(ge=-10, le=10)
+    explanation: str
+    risk_flags: list[str] = Field(default_factory=list)
+
+
 class RouteOption(BaseModel):
     id: str
     label: str
     status: Literal["recommended", "caution", "avoid"]
     confidence_score: int = Field(ge=0, le=100)
+    rule_based_confidence_score: int | None = Field(default=None, ge=0, le=100)
     distance_meters: int
     duration_seconds: int
     geometry: RouteGeometry
     legs: list[JourneyLeg]
     accessibility_evidence: list[AccessibilityEvidence]
     evidence_summary: str
+    ai_review: AIReview | None = None
 
 
 class ProviderStatus(BaseModel):

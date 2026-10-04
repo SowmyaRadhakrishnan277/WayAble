@@ -38,7 +38,11 @@ class JourneyService:
         options.sort(key=lambda option: (status_rank(option.status), -option.confidence_score, option.duration_seconds))
         for index, option in enumerate(options, start=1):
             option.id = f"transit-route-{index}"
-            option.label = "Recommended transit journey" if index == 1 else "Alternative transit journey"
+            option.label = {
+                "recommended": "Recommended transit journey",
+                "caution": "Transit journey with access details to check",
+                "avoid": "Transit journey with a recorded access barrier",
+            }[option.status]
         return options, accessibility_data_available, gtfs_state, realtime
 
     async def _build_option(
@@ -62,6 +66,16 @@ class JourneyService:
         approach_features, approach_available = await self.map_provider.accessibility_features(approach["geometry"]["coordinates"])
         egress_features, egress_available = await self.map_provider.accessibility_features(egress["geometry"]["coordinates"])
         evidence = assess_features(approach_features, user_type) + assess_features(egress_features, user_type)
+        if not approach_available or not egress_available:
+            evidence.append(
+                AccessibilityEvidence(
+                    category="accessibility_data",
+                    severity="unknown",
+                    message="Accessibility evidence could not be retrieved for a walking leg; check conditions before travel.",
+                    source="Overpass API",
+                    source_url="https://overpass-api.de/",
+                )
+            )
         evidence.extend(_transit_evidence(candidate, user_type, realtime))
 
         blockers = sum(item.severity == "blocker" for item in evidence)
@@ -115,6 +129,7 @@ class JourneyService:
                 label="Transit journey",
                 status=status,
                 confidence_score=confidence,
+                rule_based_confidence_score=confidence,
                 distance_meters=round(approach["distance"] + transit_distance + egress["distance"]),
                 duration_seconds=round(approach["duration"] + wait_seconds + transit_seconds + egress["duration"]),
                 geometry=geometry,

@@ -30,12 +30,26 @@ class RouteService:
             if not provider_available:
                 access_data_available = False
             evidence = assess_features(raw_features, user_type)
+            if not provider_available:
+                evidence.append(
+                    AccessibilityEvidence(
+                        category="accessibility_data",
+                        severity="unknown",
+                        message="Accessibility evidence could not be retrieved for this route; check conditions before travel.",
+                        source="Overpass API",
+                        source_url="https://overpass-api.de/",
+                    )
+                )
             options.append(build_option(index, raw_route, evidence, user_type))
 
         options.sort(key=lambda option: (status_rank(option.status), -option.confidence_score, option.duration_seconds))
         for index, option in enumerate(options, start=1):
             option.id = f"route-{index}"
-            option.label = "Recommended route" if index == 1 else "Alternative route"
+            option.label = {
+                "recommended": "Recommended route" if index == 1 else "Step-free alternative",
+                "caution": "Route with access details to check",
+                "avoid": "Route with a recorded access barrier",
+            }[option.status]
         return options[:2], access_data_available
 
 
@@ -72,23 +86,42 @@ def _feature_evidence(
             )
         )
 
-    if tags.get("highway") == "steps" or tags.get("wheelchair") == "no":
+    pedestrian_highways = {
+        "crossing",
+        "cycleway",
+        "footway",
+        "living_street",
+        "path",
+        "pedestrian",
+        "residential",
+        "service",
+        "steps",
+        "track",
+        "unclassified",
+    }
+    # An amenity may be wheelchair-tagged without describing the path outside it.
+    # Only use highway-tagged pedestrian features as route evidence; a nearby
+    # accessible café must not make an uncertain route look accessible.
+    route_feature = tags.get("highway") in pedestrian_highways
+    crossing = tags.get("highway") == "crossing" or "crossing" in tags
+
+    if tags.get("highway") == "steps" or (route_feature and tags.get("wheelchair") == "no"):
         add("steps", "blocker", "OpenStreetMap reports steps or wheelchair access is not available here.")
     if tags.get("barrier") in {"stile", "turnstile"}:
         add("barrier", "blocker", f"OpenStreetMap reports a {tags['barrier']} on or near this route.")
     if tags.get("kerb") in {"raised", "high"}:
         add("kerb", "caution", "A raised kerb is recorded near this route.")
-    if tags.get("wheelchair") in {"yes", "designated"}:
+    if route_feature and tags.get("wheelchair") in {"yes", "designated"}:
         add("wheelchair_access", "positive", "Wheelchair access is tagged for a nearby route feature.")
     if tags.get("kerb") in {"lowered", "flush", "rolled"}:
         add("kerb", "positive", "A lowered or flush kerb is recorded near this route.")
-    if tags.get("surface") in {"cobblestone", "sett", "gravel", "ground", "unpaved"}:
+    if route_feature and tags.get("surface") in {"cobblestone", "sett", "gravel", "ground", "unpaved"}:
         add("surface", "caution", f"The surface is tagged as {tags['surface']}, which may be difficult to traverse.")
 
     if user_type == UserType.LOW_VISION:
-        if tags.get("tactile_paving") in {"yes", "incorrect"}:
+        if (crossing or route_feature) and tags.get("tactile_paving") in {"yes", "incorrect"}:
             add("tactile_paving", "positive", "Tactile paving is recorded near this crossing or route feature.")
-        if tags.get("tactile_paving") == "no":
+        if (crossing or route_feature) and tags.get("tactile_paving") == "no":
             add("tactile_paving", "caution", "No tactile paving is recorded for a nearby crossing or route feature.")
     return items
 
@@ -97,12 +130,14 @@ def build_option(index: int, raw_route: dict[str, Any], evidence: list[Accessibi
     blockers = sum(item.severity == "blocker" for item in evidence)
     cautions = sum(item.severity == "caution" for item in evidence)
     positives = sum(item.severity == "positive" for item in evidence)
+    unknowns = sum(item.severity == "unknown" for item in evidence)
     tagged_evidence = len(evidence)
 
-    confidence = 45 + min(30, tagged_evidence * 6) + min(15, positives * 4) - cautions * 8 - blockers * 30
+    known_evidence = tagged_evidence - unknowns
+    confidence = 45 + min(30, known_evidence * 6) + min(15, positives * 4) - cautions * 8 - blockers * 30 - unknowns * 6
     confidence = max(5, min(100, confidence))
-    status = "avoid" if blockers else "caution" if cautions or not tagged_evidence else "recommended"
-    summary = _summary(status, user_type, positives, cautions, blockers, tagged_evidence)
+    status = "avoid" if blockers else "caution" if cautions or unknowns or positives < 2 else "recommended"
+    summary = _summary(status, user_type, positives, cautions, blockers, unknowns, tagged_evidence)
     return RouteOption(
         id=f"route-{index + 1}",
         label="Route",
@@ -182,12 +217,16 @@ def _instruction_text(step: dict[str, Any]) -> str:
     return f"Continue toward {road_name}."
 
 
-def _summary(status: str, user_type: UserType, positives: int, cautions: int, blockers: int, tagged_evidence: int) -> str:
+def _summary(
+    status: str, user_type: UserType, positives: int, cautions: int, blockers: int, unknowns: int, tagged_evidence: int
+) -> str:
     profile = "wheelchair" if user_type == UserType.WHEELCHAIR else "low-vision"
     if blockers:
         return f"Not recommended for the {profile} profile: {blockers} blocking access signal(s) were found."
     if cautions:
         return f"Use caution for the {profile} profile: {cautions} possible access concern(s) were found."
+    if unknowns:
+        return f"Use caution for the {profile} profile: accessibility evidence is unavailable for this route."
     if tagged_evidence:
         return f"{positives} positive accessibility signal(s) were found for the {profile} profile."
     return "No nearby accessibility tags were returned; route suitability is unknown."
