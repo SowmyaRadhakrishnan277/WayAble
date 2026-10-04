@@ -62,6 +62,28 @@
         },
         "url": "{{baseUrl}}/api/v1/routes"
       }
+    },
+    {
+      "name": "Plan a dynamic journey",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"from_location\": \"Dogpatch Labs, Dublin\",\n  \"to_location\": \"Trinity College Dublin\",\n  \"user_type\": \"wheelchair\",\n  \"departure_time\": \"2026-10-05T09:00:00+01:00\",\n  \"include_public_transport\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/journeys"
+      }
     }
   ]
 }

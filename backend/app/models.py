@@ -31,6 +31,13 @@ class RouteRequest(BaseModel):
     )
 
 
+class JourneyRequest(RouteRequest):
+    include_public_transport: bool = Field(
+        default=True,
+        description="When NTA GTFS is configured, include eligible bus, Luas, DART and rail options.",
+    )
+
+
 class Location(BaseModel):
     label: str
     coordinate: Coordinate

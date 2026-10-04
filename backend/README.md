@@ -42,9 +42,21 @@ Use `"low_vision"` for the other profile. The response has up to two ranked rout
 
 Each route contains `legs[0].instructions` for a text journey view, while `geometry` and `legs[0].geometry` contain the route line for a map renderer. `data_sources` records source purpose, state, URL, and freshness. The API caches geocoding for 24 hours, route geometry for 10 minutes, and OSM accessibility corridor queries for 15 minutes to stay within public-provider limits.
 
-## Transit Sources
+## Dynamic Transit Journeys
 
-The current endpoint is deliberately walking-only. It reports NTA GTFS, NTA GTFS-Realtime, and Irish Rail lift alerts as `not_configured` until valid provider credentials and machine-readable URLs are supplied in environment variables. This avoids returning transit guidance from incomplete or scraped data. The response already supports transit legs for the next multimodal adapter.
+`POST /api/v1/journeys` returns the best two routes across walking and, when configured, direct public-transport options. A transit journey contains walking-to-stop, transit, and walking-from-stop legs. Its transit map line uses GTFS `shapes.txt` where available. The initial transit search intentionally supports direct services only; do not present it as a full network-transfer planner until the transfer-routing stage is implemented.
+
+The endpoint downloads and caches the static GTFS ZIP for one hour, refreshes GTFS-Realtime every 30 seconds, and only retrieves walking access legs for the shortlisted transit candidates. It filters out a transit trip or stop explicitly marked `wheelchair_accessible=2` or `wheelchair_boarding=2`; missing access data is shown as unknown.
+
+Set these environment variables before starting the API:
+
+```powershell
+$env:NTA_API_KEY = "your-nta-subscription-key"
+$env:NTA_GTFS_STATIC_URL = "https://your-approved-nta-gtfs-url"
+$env:NTA_GTFS_REALTIME_URL = "https://your-approved-nta-gtfs-realtime-url"
+```
+
+Without them, the same endpoint remains useful: it returns walking options and reports transit as `not_configured`. Irish Rail lift data remains disabled until an approved machine-readable feed is available; alert pages are not scraped.
 
 ## Confidence rules
 

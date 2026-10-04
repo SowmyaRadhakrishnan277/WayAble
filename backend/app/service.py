@@ -111,13 +111,15 @@ def build_option(index: int, raw_route: dict[str, Any], evidence: list[Accessibi
         distance_meters=round(raw_route["distance"]),
         duration_seconds=round(raw_route["duration"]),
         geometry=RouteGeometry(coordinates=raw_route["geometry"]["coordinates"]),
-        legs=_build_walking_legs(raw_route),
+        legs=build_walking_legs(raw_route),
         accessibility_evidence=evidence,
         evidence_summary=summary,
     )
 
 
-def _build_walking_legs(raw_route: dict[str, Any]) -> list[JourneyLeg]:
+def build_walking_legs(
+    raw_route: dict[str, Any], start_label: str = "Start", end_label: str = "Destination"
+) -> list[JourneyLeg]:
     route_geometry = RouteGeometry(coordinates=raw_route["geometry"]["coordinates"])
     raw_legs = raw_route.get("legs", [])
     instructions: list[JourneyInstruction] = []
@@ -151,8 +153,8 @@ def _build_walking_legs(raw_route: dict[str, Any]) -> list[JourneyLeg]:
     return [
         JourneyLeg(
             mode="walk",
-            start_label="Start",
-            end_label="Destination",
+            start_label=start_label,
+            end_label=end_label,
             distance_meters=round(raw_route["distance"]),
             duration_seconds=round(raw_route["duration"]),
             geometry=route_geometry,

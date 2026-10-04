@@ -67,3 +67,21 @@ def test_rejects_invalid_user_type(client):
         json={"from_location": "Dogpatch Labs, Dublin", "to_location": "Trinity College Dublin", "user_type": "pram"},
     )
     assert response.status_code == 422
+
+
+def test_dynamic_journeys_endpoint_keeps_map_and_text_route_contract(client):
+    response = client.post(
+        "/api/v1/journeys",
+        json={
+            "from_location": "Dogpatch Labs, Dublin",
+            "to_location": "Trinity College Dublin",
+            "user_type": "wheelchair",
+            "departure_time": "2026-10-05T09:00:00+01:00",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["routes"][0]["geometry"]["coordinates"]
+    assert payload["routes"][0]["legs"][0]["instructions"]
+    assert payload["provider_status"]["public_transport"] == "not_configured"
